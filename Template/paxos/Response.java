@@ -10,6 +10,53 @@ public class Response implements Serializable {
     static final long serialVersionUID=2L;
     // your data here
 
+    //is seq required?
+
+    boolean ack; //might need separate for accept and promise
+    int propNo;
+    Object value;
+    String type;
+    String accepted;
+    int acceptedPropNo;
 
     // Your constructor and methods here
+    public Response(){
+        this.ack = false; 
+        this.propNo = -1;
+        this.value = null;
+        this.type = "";
+        this.accepted = "";
+        this.acceptedPropNo = -1;
+    }
+
+    //rejects
+    public Response(boolean ack){
+        this.ack = ack;
+    }
+
+    //TYPE propNo
+    public Response(boolean ack, int propNo, String type){
+        this.ack = ack;
+        this.propNo = propNo;
+        this.type = type;
+    }
+
+    //TYPE propNo, value
+    public Response(boolean ack, int propNo, Object value, String type){
+        this.ack = ack;
+        this.propNo = propNo;
+        this.value = value;
+        this.type = type;
+    }
+
+    //TYPE propNo accepted acceptedPropNo value
+    public Response(boolean ack, int propNo, Object value, String type, String accepted, int acceptedPropNo){
+        this.ack = ack;
+        this.propNo = propNo;
+        this.value = value;
+        this.type = type;
+        this.accepted = accepted;
+        this.acceptedPropNo = acceptedPropNo;
+    }
+
 }
