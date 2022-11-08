@@ -2,9 +2,11 @@ package paxos;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.registry.Registry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.*;
+import java.time.Instant;
 
 /**
  * This class is the main class you need to implement paxos instances.
@@ -25,8 +27,10 @@ public class Paxos implements PaxosRMI, Runnable{
     // Your data here
     int seq;
     Object value;
-    Map<Integer, Object> seq2Obj = new HashMap<>();
-    Map<Integer, PaxosInstance> seq2paxIns = new HashMap<>();
+    // Map<Integer, Object> seq2Obj = new HashMap<>();
+    // Map<Integer, PaxosInstance> seq2paxIns = new HashMap<>();
+//    Map<Integer, Object> seq2Obj = new ConcurrentHashMap<>();
+    Map<Integer, PaxosInstance> seq2paxIns = new ConcurrentHashMap<>();
 
     List<Integer> done = new ArrayList<>();
 
@@ -47,6 +51,10 @@ public class Paxos implements PaxosRMI, Runnable{
         // Your initialization code here
         this.seq = -1;
         this.value = null;
+
+        for (int i = 1; i <= this.peers.length; i++) {
+            this.done.add(-1);
+        }
 
         // register peers, do not modify this part
         try{
@@ -80,8 +88,11 @@ public class Paxos implements PaxosRMI, Runnable{
         try{
             Registry registry=LocateRegistry.getRegistry(this.ports[id]);
             stub=(PaxosRMI) registry.lookup("Paxos");
-            if(rmi.equals("Prepare"))
+            if(rmi.equals("Prepare")) {
+//                System.out.println("Calllllllllllllllllllllllllllllllllllllllllllll");
                 callReply = stub.Prepare(req);
+                System.out.println("CaXXXXXXXXXXXXXXXXXxlllllllllllllllllllllllllllllllllllllllllllll");
+            }
             else if(rmi.equals("Accept"))
                 callReply = stub.Accept(req);
             else if(rmi.equals("Decide"))
@@ -89,6 +100,7 @@ public class Paxos implements PaxosRMI, Runnable{
             else
                 System.out.println("Wrong parameters!");
         } catch(Exception e){
+            System.out.println("Exception"+e);
             return null;
         }
         return callReply;
@@ -113,9 +125,13 @@ public class Paxos implements PaxosRMI, Runnable{
      * is reached.
      */
     public void Start(int seq, Object value){
+//        if(seq < this.Min())
+//            return;
+        // TODO: update SeqtoObj here.
         // Your code here
         this.seq = seq;
         this.value = value;
+//        this.seq2Obj.put(seq, value);
         
         Thread thread = new Thread(this);
         thread.start();
@@ -124,10 +140,17 @@ public class Paxos implements PaxosRMI, Runnable{
     @Override
     public void run(){
         //Your code here
-        if(this.seq2paxIns.get(this.seq) == null){
-            this.seq2paxIns.put(this.seq, new PaxosInstance());
-            this.seq2Obj.put(this.seq, this.value);
-        }            
+        //TODO thread.lock
+        if(this.seq < this.Min())
+            return;
+//        if(this.seq2paxIns.get(this.seq) == null){
+//            mutex.lock();
+//            this.seq2paxIns.put(this.seq, new PaxosInstance());
+////            mutex.unlock();
+////            mutex.lock();
+//            this.seq2Obj.put(this.seq, this.value);
+//            mutex.unlock();
+//        }
 
         this.proposer();
 
@@ -135,46 +158,96 @@ public class Paxos implements PaxosRMI, Runnable{
 
     public void proposer(){
         //need to write
+//        int n = this.seq2paxIns.get(this.seq).n_p + this.me;
         int n;
-        
-        while(this.seq2paxIns.get(this.seq).state != State.Decided){
-            n = this.seq2paxIns.get(this.seq).n_p + this.me; //should be unique, this may not work
+
+        while(!isDead() && this.getInstance(this.seq).state != State.Decided){// && this.seq2paxIns.get(this.seq).state != State.Decided){
+//            n = this.seq2paxIns.get(this.seq).n_p + this.me + (int)Instant.now().toEpochMilli(); //should be unique, this may not work
+            n = (int)Instant.now().toEpochMilli();
+            System.out.println("proposal number: " + n);
             
             int countPromise = 0;
+//            int highest_n_a = -1;
+            int highest_n_a = this.seq2paxIns.get(this.seq).n_a;
+
+            Object highest_v_a = new Object();
             
-            Request prepare = new Request(this.seq, n, "PREPARE");
+            Request prepare = new Request(this.seq, n, "PREPARE", this.done.get(this.me), this.me);
             Response promiseResp = new Response();
             
-            for(int i = 0; i<peers.length; i++){
-                promiseResp = Call("Prepare", prepare, i);
-                if(promiseResp.propNo == n)
+            for(int i = 0; i<this.peers.length; i++){
+                System.out.println("Prepare" + i + "by" + this.me);
+                if(i != this.me) {
+                    System.out.println("remote callssssssssssssssssssssssssssssssssssssssssssssss");
+                    promiseResp = Call("Prepare", prepare, i);
+                }
+                else
+                    promiseResp = Prepare(prepare);
+                System.out.println(promiseResp+"PRRRRRRRRRRRRRRRRRRRRRRRRRRRr");
+                if(promiseResp != null && promiseResp.propNo == n){
+                    System.out.println("HAPPENING....................................");
+//                    this.done.set(i, promiseResp.minDone);
+                    System.out.println("promiseResp done " + this.done);
                     countPromise++;
+                    if(promiseResp.accepted == "accepted" && promiseResp.acceptedPropNo > highest_n_a){
+                        highest_n_a = promiseResp.acceptedPropNo;
+                        highest_v_a = promiseResp.value;
+                    }
+                }
+
             }
-            
+            System.out.println(countPromise+"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"+this.peers.length+"......."+this.peers.length/2);
             //check majority condition
             if(countPromise>this.peers.length/2){
                 Object vprime;
-                if(promiseResp.accepted == "accepted")
-                    vprime = promiseResp.value;
+                if(highest_n_a>-1)
+                    vprime = highest_v_a;
                 else
                     vprime = this.value;
-                
+
+                System.out.println(vprime+"##################################");
+
                 int countAccept = 0;
                 
-                Request accept_request = new Request(this.seq, vprime, n, "ACCEPT-REQUEST");
+                Request accept_request = new Request(this.seq, vprime, n, "ACCEPT-REQUEST", this.done.get(this.me), this.me);
                 Response acceptResp = new Response();
 
-                for(int i = 0; i<peers.length; i++){
-                    acceptResp = Call("Accept", accept_request, i);
-                    if(acceptResp.propNo == n)
+                for(int i = 0; i<this.peers.length; i++){
+                    if(i != this.me)
+                        acceptResp = Call("Accept", accept_request, i);
+                    else
+                        acceptResp = Accept(accept_request);
+//                    acceptResp = Call("Accept", accept_request, i);
+
+                    if(acceptResp != null){// && acceptResp.propNo == n){
+//                        this.done.set(i, acceptResp.minDone);
+                        System.out.println("acceptResp done " + this.done);
                         countAccept++;
+                    }
                 }
 
                 if(countAccept>this.peers.length/2){
                     //broadcast decide
+                    System.out.println("DECIDEDddddddddddddddddddddddddddddddddddddddddddddddd");
+                    Request decide = new Request(this.seq, vprime, n, "DECIDE", this.done.get(this.me), this.me);
                     Response decideResp;
-                    for(int i = 0; i<peers.length; i++){
-                        decideResp = Call("Decide", accept_request, i);
+
+                    this.done.set(this.me, this.seq);
+                    System.out.println("I'm done " + this.done);
+                    for(int i = 0; i<this.peers.length; i++){
+                        if(i!=me){
+                            decideResp = Call("Decide", decide, i);
+                            if(decideResp != null) {
+
+                                System.out.println("decideResp done " + this.done + " " + i);
+//                                System.out.println("mindone after decide:"+decideResp.minDone);
+//                                this.done.set(i, decideResp.minDone);
+                                System.out.println("after " + this.done + " " + i);
+                            }
+                        }
+                        else {
+                            decideResp = Decide(decide);
+                        }
                     }
     
                 }
@@ -190,18 +263,29 @@ public class Paxos implements PaxosRMI, Runnable{
         // your code here
 
         //response format accoring to the google guy - can change to match pseudocode in doc if required
-
-        if(req.propNo > this.seq2paxIns.get(req.seq).n_p)
+        this.done.set(req.peer, req.minDone);
+//        System.out.println(req.propNo +"@@@@@@@ "+ this.seq2paxIns.get(req.seq).n_p);
+//        System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!"+this.seq2paxIns.get(req.seq));
+//        if(req.propNo > this.seq2paxIns.get(req.seq).n_p)
+        if(req.propNo > this.getInstance(req.seq).n_p)
         {
+//            System.out.println("Before: " + this.seq2paxIns.get(req.seq).n_p+" prop#: "+req.propNo);
             this.seq2paxIns.get(req.seq).n_p = req.propNo;
-            
-            if(this.seq2paxIns.get(req.seq).v_a != null)
+//            System.out.println("After: " + this.seq2paxIns.get(req.seq).n_p+" prop#: "+req.propNo);
+            System.out.println("prepare1");
+
+            if(this.seq2paxIns.get(req.seq).v_a != null) {
+                System.out.println("prepare2");
                 return (new Response(true, req.propNo, this.seq2paxIns.get(req.seq).v_a, "PROMISE", "accepted", this.seq2paxIns.get(req.seq).n_a));
-            else
+            }
+            else {
+                System.out.println("prepare3");
                 return (new Response(true, req.propNo, "PROMISE"));
+            }
         }
         else
         {
+            System.out.println("prepare4");
             return (new Response(false));
         }
 
@@ -211,8 +295,10 @@ public class Paxos implements PaxosRMI, Runnable{
         // your code here
 
         //response format accoring to the google guy - can change to match pseudocode in doc if required
+        this.done.set(req.peer, req.minDone);
 
-        if(req.propNo >= this.seq2paxIns.get(req.seq).n_p)
+//        if(req.propNo >= this.seq2paxIns.get(req.seq).n_p)
+        if(req.propNo >= this.getInstance(req.seq).n_p)
         {
             this.seq2paxIns.get(req.seq).n_p = req.propNo;
             this.seq2paxIns.get(req.seq).n_a = req.propNo;
@@ -230,12 +316,18 @@ public class Paxos implements PaxosRMI, Runnable{
     public Response Decide(Request req){
         // your code here
 
+        this.done.set(req.peer, req.minDone);
+        System.out.println(req.peer+"peeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrrrrrr" + this.me);
+
         this.seq2paxIns.get(req.seq).n_p = req.propNo;
         this.seq2paxIns.get(req.seq).n_a = req.propNo;
         this.seq2paxIns.get(req.seq).v_a = req.value;
         this.seq2paxIns.get(req.seq).state = State.Decided;
 
-        return new Response();
+//        this.Done(req.seq);
+        System.out.println(this.done);
+
+        return new Response(true);
 
     }
 
@@ -247,8 +339,9 @@ public class Paxos implements PaxosRMI, Runnable{
      */
     public void Done(int seq) {
         // Your code here
-        if(done.get(this.me)<=seq)
-            done.set(this.me, seq);
+        System.out.println("this.meeeeeeeeee" + this.me);
+        if(this.done.get(this.me)<=seq)
+            this.done.set(this.me, seq);
     }
 
 
@@ -260,7 +353,7 @@ public class Paxos implements PaxosRMI, Runnable{
     public int Max(){
         // Your code here
         int max = -1;
-        Iterator<HashMap.Entry<Integer, Object>> itr = seq2Obj.entrySet().iterator();
+        Iterator<HashMap.Entry<Integer, PaxosInstance>> itr = this.seq2paxIns.entrySet().iterator();
         
         while(itr.hasNext()){
             if(itr.next().getKey()>max)
@@ -301,7 +394,23 @@ public class Paxos implements PaxosRMI, Runnable{
      */
     public int Min(){
         // Your code here
+        int min = Integer.MAX_VALUE;
+        for(int seq: this.done){
+            if(seq < min)
+                min = seq;
+        }
 
+        Iterator<HashMap.Entry<Integer, PaxosInstance>> itr = this.seq2paxIns.entrySet().iterator();
+        
+        while(itr.hasNext()){
+            if(itr.next().getKey()<=min){  // && itr.next().getValue().state==State.Decided){
+                itr.remove();
+//                this.seq2Obj.remove(itr.next().getKey());
+            }
+
+        }
+
+        return min + 1;
     }
 
 
@@ -320,10 +429,17 @@ public class Paxos implements PaxosRMI, Runnable{
 
         // State s = seq2paxIns.get(seq).state;
         // Object obj = seq2Obj.get(seq);
-        
-        Paxos.retStatus ret = new retStatus(seq2paxIns.get(seq).state, seq2Obj.get(seq));
+        System.out.println(this.me+" me @"+seq+"----------------"+this.Min());
+        if(seq < this.Min())
+            return new retStatus(State.Forgotten, null);
+//        if
 
-        return ret;
+        if (this.seq2paxIns.containsKey(seq)) {
+//            return new retStatus(this.seq2paxIns.get(seq).state, this.seq2Obj.get(seq));
+            return new retStatus(this.seq2paxIns.get(seq).state, this.seq2paxIns.get(seq).v_a);
+        }
+        else
+            return new retStatus(State.Pending, null);
     }
 
     /**
@@ -351,6 +467,16 @@ public class Paxos implements PaxosRMI, Runnable{
             this.v_a = null;
             this.state = State.Pending;
         }
+    }
+
+    public PaxosInstance getInstance(int seq){
+        mutex.lock();
+        if(!seq2paxIns.containsKey(seq)){
+            PaxosInstance instance = new PaxosInstance();
+            seq2paxIns.put(seq, instance);
+        }
+        mutex.unlock();
+        return seq2paxIns.get(seq);
     }
 
     /**

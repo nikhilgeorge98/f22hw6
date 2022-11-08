@@ -14,6 +14,8 @@ public class Request implements Serializable {
     Object value;
     int propNo;
     String type;
+    int minDone;
+    int peer;
 
     // Your constructor and methods here
     public Request(){
@@ -21,18 +23,24 @@ public class Request implements Serializable {
         this.value = null;
         this.propNo = -1;
         this.type = "";
+        this.minDone = -1;
+        this.peer = -1;
     }
 
-    public Request(int seq, int propNo, String type){
+    public Request(int seq, int propNo, String type, int minDone, int peer){
         this.seq = seq;
         this.propNo = propNo;
         this.type = type;
+        this.minDone = minDone;
+        this.peer = peer;
     }
 
-    public Request(int seq, Object value, int propNo, String type){
+    public Request(int seq, Object value, int propNo, String type, int minDone, int peer){
         this.seq = seq;
         this.value = value;
         this.propNo = propNo;
         this.type = type;
+        this.minDone = minDone;
+        this.peer = peer;
     }
 }

@@ -18,6 +18,7 @@ public class Response implements Serializable {
     String type;
     String accepted;
     int acceptedPropNo;
+//    int minDone;
 
     // Your constructor and methods here
     public Response(){
@@ -27,11 +28,13 @@ public class Response implements Serializable {
         this.type = "";
         this.accepted = "";
         this.acceptedPropNo = -1;
+//        this.minDone = -1;
     }
 
     //rejects
     public Response(boolean ack){
         this.ack = ack;
+//        this.minDone = minDone;
     }
 
     //TYPE propNo
@@ -39,6 +42,7 @@ public class Response implements Serializable {
         this.ack = ack;
         this.propNo = propNo;
         this.type = type;
+//        this.minDone = minDone;
     }
 
     //TYPE propNo, value
@@ -47,6 +51,7 @@ public class Response implements Serializable {
         this.propNo = propNo;
         this.value = value;
         this.type = type;
+//        this.minDone = minDone;
     }
 
     //TYPE propNo accepted acceptedPropNo value
@@ -57,6 +62,7 @@ public class Response implements Serializable {
         this.type = type;
         this.accepted = accepted;
         this.acceptedPropNo = acceptedPropNo;
+//        this.minDone = minDone;
     }
 
 }
