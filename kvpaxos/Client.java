@@ -1,5 +1,6 @@
 package kvpaxos;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -9,18 +10,21 @@ public class Client {
     int[] ports;
 
     // Your data here
+    AtomicInteger idHelper = new AtomicInteger(0);
+    int clientNo;
 
 
     public Client(String[] servers, int[] ports){
         this.servers = servers;
         this.ports = ports;
         // Your initialization code here
+        this.clientNo = idHelper.getAndIncrement();
     }
 
     /**
      * Call() sends an RMI to the RMI handler on server with
      * arguments rmi name, request message, and server id. It
-     * waits for the reply and return a response message if
+     * waits for the reply and return a res message if
      * the server responded, and return null if Call() was not
      * be able to contact the server.
      *
@@ -51,11 +55,34 @@ public class Client {
     // RMI handlers
     public Integer Get(String key){
         // Your code here
-        return -1;
+        Op get_operation = new Op("Get", clientNo, key, null);
+    	Request request = new Request(get_operation);
+    	Response res = null;
+    	int ind = 0;
+    	while(res == null) {
+            res = Call("Get", request, ind);
+    		ind = (ind +1 ) % ports.length;
+    	}
+    	if(res.operation != null) {
+            return res.operation.value;
+        }
+    	return null;
+
     }
 
     public boolean Put(String key, Integer value){
         // Your code here
+        Op put_operation = new Op("Put", clientNo, key, value);
+    	Request request = new Request(put_operation);
+    	Response res = null;
+    	int ind = 0;
+    	while(res == null) {
+    		res = Call("Put", request, ind);
+    		ind = (ind + 1) % ports.length;
+    	}
+    	if(res.operation != null) {
+            return true;
+        }
         return false;
     }
 

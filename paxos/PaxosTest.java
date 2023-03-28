@@ -16,10 +16,8 @@ public class PaxosTest {
         Object v = null;
         Paxos.retStatus ret;
         for(int i = 0; i < pxa.length; i++){
-//            System.out.println("test peer: "+i);
             if(pxa[i] != null){
                 ret = pxa[i].Status(seq);
-//                System.out.println("ret state:"+ret.state+" ret value"+ret.v);
                 if(ret.state == State.Decided) {
                     assertFalse("decided values do not match: seq=" + seq + " i=" + i + " v=" + v + " v1=" + ret.v, counter > 0 && !v.equals(ret.v));
                     counter++;
@@ -62,21 +60,14 @@ public class PaxosTest {
                 pxa[i].Kill();
             }
         }
-
-//        try // wait for all threads to die
-//        {
-//                Thread.sleep(1000);
-//        }
-//        catch(Exception e) { }
+        try // wait for all threads to die
+        {
+            Thread.sleep(1000);
+        }
+        catch(Exception e) { }
     }
 
     private Paxos[] initPaxos(int npaxos){
-        try // wait for all threads to die
-        {
-                Thread.sleep(1000);
-        }
-        catch(Exception e) { }
-
         String host = "127.0.0.1";
         String[] peers = new String[npaxos];
         int[] ports = new int[npaxos];
@@ -89,27 +80,6 @@ public class PaxosTest {
             pxa[i] = new Paxos(i, peers, ports);
         }
         return pxa;
-    }
-
-    @Test
-    public void TestSimple() {
-
-        final int npaxos = 5;
-        Paxos[] pxa = initPaxos(npaxos);
-
-        System.out.println("Test: Single proposer ...");
-        pxa[0].Start(0, "hello");
-        waitn(pxa, 0, npaxos);
-        System.out.println("... Passed");
-
-//        System.out.println("Test: Many proposers, same value ...");
-//        for(int i = 0; i < npaxos; i++){
-//            pxa[i].Start(1, 77);
-//        }
-//        waitn(pxa, 1, npaxos);
-//        System.out.println("... Passed");
-
-        cleanup(pxa);
     }
 
     @Test
@@ -168,7 +138,7 @@ public class PaxosTest {
         System.out.println("Test: Deaf proposer ...");
         pxa[0].Start(0, "hello");
         waitn(pxa, 0, npaxos);
-        System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+
         pxa[1].ports[0]= 1;
         pxa[1].ports[npaxos-1]= 1;
         pxa[1].Start(1, "goodbye");

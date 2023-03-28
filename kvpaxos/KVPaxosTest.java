@@ -37,6 +37,14 @@ public class KVPaxosTest {
         check(ck, "app", 6);
         ck.Put("a", 70);
         check(ck, "a", 70);
+        ck.Put("a", 70);
+        check(ck, "a", 70);
+        ck.Put("a", 70);
+        check(ck, "a", 70);
+        ck.Put("a", 70);
+        check(ck, "a", 70);
+        int n = ck.Get("app");
+        assertTrue("Got " + n + " expected " + 6, n==6);
 
         System.out.println("... Passed");
 
